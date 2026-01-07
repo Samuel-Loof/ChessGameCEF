@@ -1,0 +1,61 @@
+cmake_minimum_required(VERSION 3.19)
+project(ChessGameCEF)
+
+# NEW: We use C++17 standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# NEW: Path to CEF (Chromium Embedded Framework)
+set(CEF_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/cef")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CEF_ROOT}/cmake")
+
+# NEW: Find and load CEF
+find_package(CEF REQUIRED)
+
+# NEW: DirectX 11 libraries
+set(DX_LIBS d3d11.lib dxgi.lib d3dcompiler.lib)
+
+# NEW: Build CEF wrapper library
+add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper)
+
+# NEW: Our source files
+set(SOURCES
+    src/main.cpp
+	src/dx11_renderer.cpp
+)
+
+set(HEADERS
+    src/dx11_renderer.h
+)
+
+#Create executable
+add_executable(${PROJECT_NAME} WIN32 ${SOURCES} ${HEADERS})
+
+# NEW: IMPORTANT - Force static runtime (/MT) to match CEF wrapper
+# This replaces /MD with /MT in compiler flags
+target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Release>:/MT>
+    $<$<CONFIG:Debug>:/MTd>
+)
+
+# NEW: Link CEF library path
+target_link_directories(${PROJECT_NAME} PRIVATE
+    ${CEF_ROOT}/Release
+)
+
+# NEW: Link libraries
+target_link_libraries(${PROJECT_NAME} 
+    libcef
+    libcef_dll_wrapper
+    ${DX_LIBS}
+)
+
+# NEW: Add CEF include directories
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CEF_ROOT}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# NEW: Copy CEF binaries and resources
+COPY_FILES("${PROJECT_NAME}" "${CEF_BINARY_FILES}" "${CEF_BINARY_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+COPY_FILES("${PROJECT_NAME}" "${CEF_RESOURCE_FILES}" "${CEF_RESOURCE_DIR}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>")

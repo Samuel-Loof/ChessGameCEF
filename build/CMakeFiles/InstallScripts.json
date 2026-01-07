@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/zaaam/source/repos/ChessGameCEF/build/cmake_install.cmake",
+		"C:/Users/zaaam/source/repos/ChessGameCEF/build/libcef_dll_wrapper/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
