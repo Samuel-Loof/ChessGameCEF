@@ -109,7 +109,7 @@ Choose from 8 unique personalities:
 
 ## 📸 Screenshots
 
-[Add screenshots here]
+In progress...
 
 ## 🎯 Why This Project?
 
@@ -124,13 +124,3 @@ This project demonstrates:
 ## 🔗 Related Repositories
 
 - [Frontend (React UI)](https://github.com/yourusername/chess-game-ui)
-
-## 📝 License
-
-MIT License
-
-## 👤 Author
-
-**Samuel**
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
