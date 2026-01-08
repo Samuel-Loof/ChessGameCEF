@@ -7,7 +7,7 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// NEW: Vertex shader code (HLSL)
+// Vertex shader code (HLSL)
 const char* VERTEX_SHADER_CODE = R"(
 struct VS_INPUT {
     float3 pos : POSITION;
@@ -27,7 +27,7 @@ PS_INPUT main(VS_INPUT input) {
 }
 )";
 
-// NEW: Pixel shader code (HLSL)
+// Pixel shader code (HLSL)
 const char* PIXEL_SHADER_CODE = R"(
 Texture2D tex : register(t0);
 SamplerState samplerState : register(s0);
@@ -42,7 +42,7 @@ float4 main(PS_INPUT input) : SV_TARGET {
 }
 )";
 
-// NEW: Constructor - initialize mouse state
+// Constructor - initialize mouse state
 DX11Renderer::DX11Renderer() 
     : hwnd_(nullptr), device_(nullptr), context_(nullptr),
       swap_chain_(nullptr), render_target_view_(nullptr),
@@ -59,7 +59,7 @@ DX11Renderer::DX11Renderer()
     mouse_buttons_[2] = false;
 }
 
-// NEW: Initialize everything
+// Initialize everything
 bool DX11Renderer::Initialize(const std::string& title, int width, int height) {
     width_ = width;
     height_ = height;
@@ -67,13 +67,13 @@ bool DX11Renderer::Initialize(const std::string& title, int width, int height) {
     if (!CreateAppWindow(title, width, height)) return false;
     if (!InitializeDirectX()) return false;
     if (!CreateVertexBuffer()) return false;
-    if (!CreateTexture(width, height)) return false;
+    // if (!CreateTexture(width, height)) return false;  // COMMENT THIS OUT - we create texture dynamically now
     if (!CreateShaders()) return false;
     
     return true;
 }
 
-// NEW: Create the application window
+// Create the application window
 bool DX11Renderer::CreateAppWindow(const std::string& title, int width, int height) {
     WNDCLASSEX wc = {};
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -114,7 +114,7 @@ bool DX11Renderer::CreateAppWindow(const std::string& title, int width, int heig
     return true;
 }
 
-// NEW: Initialize DirectX 11
+// Initialize DirectX 11
 bool DX11Renderer::InitializeDirectX() {
     DXGI_SWAP_CHAIN_DESC scd = {};
     scd.BufferCount = 1;
@@ -168,7 +168,7 @@ bool DX11Renderer::InitializeDirectX() {
     return true;
 }
 
-// NEW: Create vertex buffer for fullscreen quad
+// Create vertex buffer for fullscreen quad
 bool DX11Renderer::CreateVertexBuffer() {
     Vertex vertices[] = {
         // Triangle 1
@@ -194,7 +194,7 @@ bool DX11Renderer::CreateVertexBuffer() {
     return SUCCEEDED(hr);
 }
 
-// NEW: Create texture to hold CEF pixels
+// Create texture to hold CEF pixels
 bool DX11Renderer::CreateTexture(int width, int height) {
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Width = width;
@@ -231,7 +231,7 @@ bool DX11Renderer::CreateTexture(int width, int height) {
     return SUCCEEDED(hr);
 }
 
-// NEW: Compile and create shaders
+// Compile and create shaders
 bool DX11Renderer::CreateShaders() {
     ID3DBlob* vs_blob = nullptr;
     ID3DBlob* ps_blob = nullptr;
@@ -311,28 +311,100 @@ bool DX11Renderer::CreateShaders() {
     return SUCCEEDED(hr);
 }
 
-// NEW: Update texture with CEF pixels
+// Update texture with CEF pixels
 void DX11Renderer::UpdateTexture(const void* buffer, int width, int height) {
-    if (!texture_ || !buffer) return;
+    if (!device_ || !context_) return;
     
-    D3D11_MAPPED_SUBRESOURCE mapped;
-    HRESULT hr = context_->Map(texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    
-    if (SUCCEEDED(hr)) {
-        const unsigned char* src = (const unsigned char*)buffer;
-        unsigned char* dst = (unsigned char*)mapped.pData;
+    // Recreate texture if size changed OR if texture doesn't exist yet
+    if (!cef_texture_ || 
+        texture_width_ != width || 
+        texture_height_ != height) {
         
-        for (int y = 0; y < height; ++y) {
-            memcpy(dst, src, width * 4);
-            src += width * 4;
-            dst += mapped.RowPitch;
+        // Release old texture if it exists
+        if (cef_texture_) {
+            cef_texture_->Release();
+            cef_texture_ = nullptr;
+        }
+        if (cef_srv_) {
+            cef_srv_->Release();
+            cef_srv_ = nullptr;
         }
         
-        context_->Unmap(texture_, 0);
+        // Create new texture with new size
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = width;
+        desc.Height = height;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        
+        HRESULT hr = device_->CreateTexture2D(&desc, nullptr, &cef_texture_);
+        if (FAILED(hr)) {
+            OutputDebugStringA("Failed to create CEF texture!\n");
+            return;
+        }
+        
+        // Create shader resource view
+        D3D11_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+        srv_desc.Format = desc.Format;
+        srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srv_desc.Texture2D.MipLevels = 1;
+        
+        hr = device_->CreateShaderResourceView(cef_texture_, &srv_desc, &cef_srv_);
+        if (FAILED(hr)) {
+            OutputDebugStringA("Failed to create CEF SRV!\n");
+            return;
+        }
+		
+		if (!sampler_state_) {
+    D3D11_SAMPLER_DESC sampler_desc = {};
+    sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sampler_desc.MaxAnisotropy = 1;
+    sampler_desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampler_desc.MinLOD = 0;
+    sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+    
+    device_->CreateSamplerState(&sampler_desc, &sampler_state_);
+}
+        
+        // Store the new texture dimensions
+        texture_width_ = width;
+        texture_height_ = height;
+        
+        char msg[128];
+        sprintf_s(msg, "Created new CEF texture: %dx%d\n", width, height);
+        OutputDebugStringA(msg);
     }
+    
+    // Update texture data
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    HRESULT hr = context_->Map(cef_texture_, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    if (FAILED(hr)) {
+        OutputDebugStringA("Failed to map CEF texture!\n");
+        return;
+    }
+    
+    const uint8_t* src = static_cast<const uint8_t*>(buffer);
+    uint8_t* dst = static_cast<uint8_t*>(mapped.pData);
+    
+    // Copy each row of pixels
+    for (int y = 0; y < height; y++) {
+        memcpy(dst + y * mapped.RowPitch, 
+               src + y * width * 4, 
+               width * 4);
+    }
+    
+    context_->Unmap(cef_texture_, 0);
 }
 
-// NEW: Render current frame
+// Render current frame
 void DX11Renderer::Render() {
     float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context_->ClearRenderTargetView(render_target_view_, clear_color);
@@ -346,7 +418,9 @@ void DX11Renderer::Render() {
     context_->IASetVertexBuffers(0, 1, &vertex_buffer_, &stride, &offset);
     context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
-    context_->PSSetShaderResources(0, 1, &texture_view_);
+    // FIXED: Use CEF texture if available, otherwise fall back to old texture
+    ID3D11ShaderResourceView* srv_to_use = cef_srv_ ? cef_srv_ : texture_view_;
+    context_->PSSetShaderResources(0, 1, &srv_to_use);
     context_->PSSetSamplers(0, 1, &sampler_state_);
     
     context_->Draw(6, 0);
@@ -354,7 +428,7 @@ void DX11Renderer::Render() {
     swap_chain_->Present(1, 0);
 }
 
-// NEW: Process Windows messages
+// Process Windows messages
 bool DX11Renderer::ProcessMessages() {
     MSG msg;
     while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -414,7 +488,7 @@ LRESULT CALLBACK DX11Renderer::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LP
                 renderer->mouse_wheel_delta_ = GET_WHEEL_DELTA_WPARAM(wparam);
                 break;
             
-            // NEW: Capture keyboard events
+            // Capture keyboard events
             // These only fire when OUR window has focus
             case WM_KEYDOWN:
             case WM_KEYUP:
@@ -440,7 +514,7 @@ LRESULT CALLBACK DX11Renderer::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LP
     return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-// NEW: Get next keyboard event from queue
+// Get next keyboard event from queue
 bool DX11Renderer::GetNextKeyEvent(KeyboardEvent& evt) {
     if (key_queue_.empty()) {
         return false;
@@ -456,7 +530,7 @@ int DX11Renderer::GetMouseWheelDelta() {
     return delta;
 }
 
-// NEW: Input query functions
+//Input query functions
 bool DX11Renderer::IsMouseButtonDown(int button) const {
     return (button >= 0 && button < 3) ? mouse_buttons_[button] : false;
 }
@@ -470,8 +544,13 @@ bool DX11Renderer::IsKeyDown(int vk_code) const {
     return (GetAsyncKeyState(vk_code) & 0x8000) != 0;
 }
 
-// NEW: Cleanup
+// Cleanup
 void DX11Renderer::Cleanup() {
+    // NEW: Clean up CEF textures
+    if (cef_srv_) cef_srv_->Release();
+    if (cef_texture_) cef_texture_->Release();
+    
+    // Existing cleanup
     if (input_layout_) input_layout_->Release();
     if (pixel_shader_) pixel_shader_->Release();
     if (vertex_shader_) vertex_shader_->Release();

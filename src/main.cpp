@@ -14,16 +14,23 @@ void DebugPrint(const char* msg) {
 
 class RenderHandler;
 
-// NEW: Off-screen render handler
+// Off-screen render handler
 class RenderHandler : public CefRenderHandler {
 public:
     RenderHandler(DX11Renderer* renderer) : renderer_(renderer) {}
     
+    // Dynamic viewport based on actual window size
     virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
         rect.x = 0;
         rect.y = 0;
-        rect.width = 1280;
-        rect.height = 720;
+        
+        // Get actual window dimensions
+        int width, height;
+        renderer_->GetWindowSize(width, height);
+        
+        // Use actual window size for CEF viewport
+        rect.width = width;
+        rect.height = height;
     }
     
     virtual void OnPaint(CefRefPtr<CefBrowser> browser,
@@ -43,7 +50,7 @@ private:
     DX11Renderer* renderer_;
 };
 
-// NEW: Browser handler
+// Browser handler
 class BrowserHandler : public CefClient, public CefLifeSpanHandler {
 public:
     BrowserHandler(DX11Renderer* renderer) 
@@ -92,7 +99,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
     }
     
     DX11Renderer renderer;
-    if (!renderer.Initialize("Chess Game CEF - DirectX11", 1280, 720)) {
+    if (!renderer.Initialize("Chess Game CEF - DirectX11", 1600, 900)) {
         MessageBox(nullptr, "Failed to initialize DirectX!", "Error", MB_OK);
         return -1;
     }
@@ -122,132 +129,159 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int) {
         nullptr
     );
     
-    // NEW: Set focus to the exe window
+    // Set focus to the exe window
     SetFocus(renderer.GetWindowHandle());
 	
 	Sleep(1000);
     
-    // NEW: Track mouse input state
-    bool prev_left = false;
-    bool prev_right = false;
-    int prev_x = 0;
-    int prev_y = 0;
+    // Track mouse input state AND dragging
+bool prev_left = false;
+bool prev_right = false;
+int prev_x = 0;
+int prev_y = 0;
+bool is_dragging = false;  // Track if we're dragging
+
+// Main loop with FULL input
+while (renderer.ProcessMessages()) {
+    CefDoMessageLoopWork();
     
-    // NEW: Main loop with FULL input (FIXED)
-    while (renderer.ProcessMessages()) {
-        CefDoMessageLoopWork();
+    CefRefPtr<CefBrowser> browser = handler->GetBrowser();
+    
+    if (browser) {
+        auto host = browser->GetHost();
         
-        CefRefPtr<CefBrowser> browser = handler->GetBrowser();
+        // Check if window was resized and tell CEF
+        static int last_width = 0;
+        static int last_height = 0;
+        int current_width, current_height;
+        renderer.GetWindowSize(current_width, current_height);
         
-        if (browser) {
-            auto host = browser->GetHost();
+        if (current_width != last_width || current_height != last_height) {
+            // Window was resized - tell CEF to update
+            host->WasResized();
+            last_width = current_width;
+            last_height = current_height;
             
-            // NEW: Ensure CEF has focus for input
-            host->SetFocus(true);
-            
-            // NEW: Get mouse position
-            int x, y;
-            renderer.GetMousePosition(x, y);
-            bool left = renderer.IsMouseButtonDown(0);
-            bool right = renderer.IsMouseButtonDown(1);
-            
-            // NEW: Mouse move
-            if (x != prev_x || y != prev_y) {
-                CefMouseEvent evt;
-                evt.x = x;
-                evt.y = y;
-                evt.modifiers = 0;
-                host->SendMouseMoveEvent(evt, false);
-                prev_x = x;
-                prev_y = y;
-            }
-            
-            // NEW: Mouse clicks (with debug)
-if (left && !prev_left) {
-    DebugPrint("LEFT CLICK DOWN");  // NEW
-    CefMouseEvent evt;
-    evt.x = x;
-    evt.y = y;
-    evt.modifiers = 0;
-    host->SendMouseClickEvent(evt, MBT_LEFT, false, 1);
-}
-if (!left && prev_left) {
-    DebugPrint("LEFT CLICK UP");  // NEW
-    CefMouseEvent evt;
-    evt.x = x;
-    evt.y = y;
-    evt.modifiers = 0;
-    host->SendMouseClickEvent(evt, MBT_LEFT, true, 1);
-}
-            if (right && !prev_right) {
-                CefMouseEvent evt;
-                evt.x = x;
-                evt.y = y;
-                host->SendMouseClickEvent(evt, MBT_RIGHT, false, 1);
-            }
-            if (!right && prev_right) {
-                CefMouseEvent evt;
-                evt.x = x;
-                evt.y = y;
-                host->SendMouseClickEvent(evt, MBT_RIGHT, true, 1);
-            }
-            
-            prev_left = left;
-            prev_right = right;
-            
-            // NEW: Mouse wheel (scroll)
-            int wheel_delta = renderer.GetMouseWheelDelta();
-            if (wheel_delta != 0) {
-                CefMouseEvent evt;
-                evt.x = x;
-                evt.y = y;
-                evt.modifiers = 0;
-                host->SendMouseWheelEvent(evt, 0, wheel_delta);
-            }
-            
-            // NEW: Keyboard input
-            KeyboardEvent key_evt;
-            while (renderer.GetNextKeyEvent(key_evt)) {
-                CefKeyEvent cef_key;
-                cef_key.windows_key_code = (int)key_evt.wparam;
-                cef_key.native_key_code = (int)key_evt.lparam;
-                cef_key.modifiers = 0;
-                
-                if (GetKeyState(VK_SHIFT) & 0x8000)
-                    cef_key.modifiers |= EVENTFLAG_SHIFT_DOWN;
-                if (GetKeyState(VK_CONTROL) & 0x8000)
-                    cef_key.modifiers |= EVENTFLAG_CONTROL_DOWN;
-                if (GetKeyState(VK_MENU) & 0x8000)
-                    cef_key.modifiers |= EVENTFLAG_ALT_DOWN;
-                
-                switch (key_evt.msg) {
-                    case WM_KEYDOWN:
-                    case WM_SYSKEYDOWN:
-                        cef_key.type = KEYEVENT_RAWKEYDOWN;
-                        host->SendKeyEvent(cef_key);
-                        break;
-                    
-                    case WM_KEYUP:
-                    case WM_SYSKEYUP:
-                        cef_key.type = KEYEVENT_KEYUP;
-                        host->SendKeyEvent(cef_key);
-                        break;
-                    
-                    case WM_CHAR:
-                    case WM_SYSCHAR:
-                        cef_key.type = KEYEVENT_CHAR;
-                        cef_key.windows_key_code = (int)key_evt.wparam;
-                        cef_key.native_key_code = (int)key_evt.wparam;
-                        host->SendKeyEvent(cef_key);
-                        break;
-                }
-            }
+            // DEBUG: Print sizes
+            char msg[256];
+            sprintf_s(msg, "Window resized to: %dx%d\n", current_width, current_height);
+            OutputDebugStringA(msg);
         }
         
-        renderer.Render();
-        Sleep(1);
-    }
+        host->SetFocus(true);
+        
+        // Get mouse position
+        int x, y;
+        renderer.GetMousePosition(x, y);
+        bool left = renderer.IsMouseButtonDown(0);
+        bool right = renderer.IsMouseButtonDown(1);
+        
+        // Mouse move - ALWAYS send if mouse moved or dragging
+        if (x != prev_x || y != prev_y || is_dragging) {
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            evt.modifiers = 0;
+            
+            // Add modifier if left button is down (dragging)
+            if (left) {
+                evt.modifiers |= EVENTFLAG_LEFT_MOUSE_BUTTON;
+            }
+            
+            host->SendMouseMoveEvent(evt, false);
+            prev_x = x;
+            prev_y = y;
+        }
+        
+        // Mouse clicks
+        if (left && !prev_left) {
+            DebugPrint("LEFT CLICK DOWN");
+            is_dragging = true;  // Start drag
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            evt.modifiers = EVENTFLAG_LEFT_MOUSE_BUTTON;
+            host->SendMouseClickEvent(evt, MBT_LEFT, false, 1);
+        }
+        if (!left && prev_left) {
+            DebugPrint("LEFT CLICK UP");
+            is_dragging = false;  // End drag
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            evt.modifiers = 0;
+            host->SendMouseClickEvent(evt, MBT_LEFT, true, 1);
+        }
+        
+        if (right && !prev_right) {
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            host->SendMouseClickEvent(evt, MBT_RIGHT, false, 1);
+        }
+        if (!right && prev_right) {
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            host->SendMouseClickEvent(evt, MBT_RIGHT, true, 1);
+        }
+        
+        prev_left = left;
+        prev_right = right;
+        
+        // Mouse wheel (scroll)
+        int wheel_delta = renderer.GetMouseWheelDelta();
+        if (wheel_delta != 0) {
+            CefMouseEvent evt;
+            evt.x = x;
+            evt.y = y;
+            evt.modifiers = 0;
+            host->SendMouseWheelEvent(evt, 0, wheel_delta);
+        }
+        
+        // Keyboard input
+        KeyboardEvent key_evt;
+        while (renderer.GetNextKeyEvent(key_evt)) {
+            CefKeyEvent cef_key;
+            cef_key.windows_key_code = (int)key_evt.wparam;
+            cef_key.native_key_code = (int)key_evt.lparam;
+            cef_key.modifiers = 0;
+            
+            if (GetKeyState(VK_SHIFT) & 0x8000)
+                cef_key.modifiers |= EVENTFLAG_SHIFT_DOWN;
+            if (GetKeyState(VK_CONTROL) & 0x8000)
+                cef_key.modifiers |= EVENTFLAG_CONTROL_DOWN;
+            if (GetKeyState(VK_MENU) & 0x8000)
+                cef_key.modifiers |= EVENTFLAG_ALT_DOWN;
+            
+            switch (key_evt.msg) {
+                case WM_KEYDOWN:
+                case WM_SYSKEYDOWN:
+                    cef_key.type = KEYEVENT_RAWKEYDOWN;
+                    host->SendKeyEvent(cef_key);
+                    break;
+                
+                case WM_KEYUP:
+                case WM_SYSKEYUP:
+                    cef_key.type = KEYEVENT_KEYUP;
+                    host->SendKeyEvent(cef_key);
+                    break;
+                
+                case WM_CHAR:
+                case WM_SYSCHAR:
+                    cef_key.type = KEYEVENT_CHAR;
+                    cef_key.windows_key_code = (int)key_evt.wparam;
+                    cef_key.native_key_code = (int)key_evt.wparam;
+                    host->SendKeyEvent(cef_key);
+                    break;
+            }
+        }
+    } 
     
-    CefShutdown();
-    return 0;
+    renderer.Render();
+    Sleep(1);
+} 
+
+CefShutdown();
+return 0;
 }
