@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <string>
 #include <queue>
+#include <functional>
 
 // Simple vertex structure for our quad
 // A quad is 2 triangles that make a rectangle
@@ -27,13 +28,20 @@ struct KeyboardEvent {
 // Handles window creation, DirectX device, and rendering
 class DX11Renderer {
 public:
+    void GetWindowSize(int& width, int& height) {
+        RECT rect;
+        GetClientRect(hwnd_, &rect);
+        width = rect.right - rect.left;
+        height = rect.bottom - rect.top;
+    }
 
-void GetWindowSize(int& width, int& height) {
-    RECT rect;
-    GetClientRect(hwnd_, &rect);
-    width = rect.right - rect.left;
-    height = rect.bottom - rect.top;
-}
+    // Set a callback for when window resizes
+    void SetResizeCallback(std::function<void(int, int)> callback) {
+        resize_callback_ = callback;
+    }
+
+    void UpdateViewport();
+
 
     // Just declare the constructor, definition will be in cpp file
     DX11Renderer();
@@ -125,4 +133,5 @@ private:
 	
 	 ID3D11Texture2D* cef_texture_ = nullptr;           // CEF rendering texture
     ID3D11ShaderResourceView* cef_srv_ = nullptr;      // Shader resource view for CEF texture
+	std::function<void(int, int)> resize_callback_;
 };

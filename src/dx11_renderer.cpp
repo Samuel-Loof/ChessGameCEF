@@ -406,26 +406,48 @@ void DX11Renderer::UpdateTexture(const void* buffer, int width, int height) {
 
 // Render current frame
 void DX11Renderer::Render() {
+    UpdateViewport();
+    
+    // Just clear to black - CEF window is on top
     float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context_->ClearRenderTargetView(render_target_view_, clear_color);
     
-    context_->VSSetShader(vertex_shader_, nullptr, 0);
-    context_->PSSetShader(pixel_shader_, nullptr, 0);
-    context_->IASetInputLayout(input_layout_);
-    
-    UINT stride = sizeof(Vertex);
-    UINT offset = 0;
-    context_->IASetVertexBuffers(0, 1, &vertex_buffer_, &stride, &offset);
-    context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    
-    // FIXED: Use CEF texture if available, otherwise fall back to old texture
-    ID3D11ShaderResourceView* srv_to_use = cef_srv_ ? cef_srv_ : texture_view_;
-    context_->PSSetShaderResources(0, 1, &srv_to_use);
-    context_->PSSetSamplers(0, 1, &sampler_state_);
-    
-    context_->Draw(6, 0);
+    // Optional: Draw DirectX background content here if needed
     
     swap_chain_->Present(1, 0);
+}
+
+
+// Update DirectX viewport to match current window size
+void DX11Renderer::UpdateViewport() {
+    RECT rect;
+    GetClientRect(hwnd_, &rect);
+    int new_width = rect.right - rect.left;
+    int new_height = rect.bottom - rect.top;
+    
+    if (new_width != width_ || new_height != height_) {
+        width_ = new_width;
+        height_ = new_height;
+        
+        // Update DirectX viewport
+        D3D11_VIEWPORT viewport = {};
+        viewport.TopLeftX = 0;
+        viewport.TopLeftY = 0;
+        viewport.Width = (float)width_;
+        viewport.Height = (float)height_;
+        viewport.MinDepth = 0.0f;
+        viewport.MaxDepth = 1.0f;
+        context_->RSSetViewports(1, &viewport);
+        
+        char msg[128];
+        sprintf_s(msg, "[DX11] Viewport updated: %dx%d\n", width_, height_);
+        OutputDebugStringA(msg);
+        
+        // Notify CEF via callback
+        if (resize_callback_) {
+            resize_callback_(width_, height_);
+        }
+    }
 }
 
 // Process Windows messages
