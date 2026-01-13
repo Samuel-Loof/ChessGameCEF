@@ -87,29 +87,6 @@ CMake 3.19+
 
 Node.js 18+
 
-OpenAI API key
-
-Build Steps
-Native application
-
-bash
-Copy code
-cd chess-game-cef
-mkdir build && cd build
-cmake .. -G "Visual Studio 18 2026" -A x64
-cmake --build . --config Release
-Frontend
-
-bash
-Copy code
-cd chess-game-ui
-npm install
-npm run dev
-Run
-
-bash
-Copy code
-./ChessGameCEF.exe
 Design Considerations
 Separation of concerns between native rendering and UI logic
 
