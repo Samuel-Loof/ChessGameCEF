@@ -1,126 +1,144 @@
-# AI Chess Game - CEF + DirectX11 + React
+AI Chess Application (C++ / CEF / DirectX 11 / React)
 
-An advanced desktop chess application combining native C++ with modern web technologies.
+A Windows desktop application combining native C++, hardware-accelerated rendering, and a modern React-based UI.
+The project explores off-screen browser rendering, native input handling, and integration between a DirectX rendering pipeline and a web-based frontend.
 
-![Screenshot](screenshot.png)
+Overview
 
-## 🎮 Features
+The application embeds a Chromium-based UI using CEF (Chromium Embedded Framework) and renders it off-screen into a DirectX 11 backbuffer.
+Game logic and AI interaction are handled in the frontend, while rendering, input, and lifecycle management are controlled by the native C++ host.
 
-- **Native C++ Desktop App** with CEF (Chromium Embedded Framework)
-- **Hardware-Accelerated Rendering** using DirectX 11
-- **Modern React UI** with TypeScript and Next.js
-- **AI Opponents** powered by OpenAI API with 8 unique personalities
-- **Off-Screen Rendering** - CEF → Backbuffer → DirectX pipeline
-- **Full Input Handling** - Mouse, keyboard, scroll support
-- **Real-time Commentary** - AI provides personality-driven move analysis
-- **Sound Effects** - Dynamic audio feedback
-- **Move Highlighting** - Visual feedback for last moves
+Key Features
+Native Desktop Application
 
-## 🏗️ Architecture
-```
+C++17 Windows application using CEF
+
+Explicit control over application lifecycle and rendering loop
+
+Custom input handling (mouse, keyboard, scroll)
+
+Rendering Pipeline
+
+Off-screen CEF rendering
+
+Direct transfer of rendered frames into a DirectX 11 backbuffer
+
+Hardware-accelerated rendering path
+
+Frame synchronization between native and browser layers
+
+Web-Based UI
+
+React + Next.js frontend written in TypeScript
+
+Chess logic implemented with chess.js
+
+UI rendered entirely inside the embedded browser
+
+AI Integration
+
+AI-driven opponent logic via OpenAI API
+
+Multiple configurable behavior profiles
+
+Real-time move analysis and commentary
+
+Architecture
 ┌─────────────────────────────────────┐
-│  C++ Desktop App (ChessGameCEF.exe) │
-│  ├── CEF (Chromium Engine)          │
-│  ├── DirectX 11 Renderer            │
-│  └── Input Handler                  │
+│ Native Host Application (C++)       │
+│ ├── CEF (Off-Screen Rendering)      │
+│ ├── DirectX 11 Renderer             │
+│ ├── Input Handling                  │
+│ └── Application Lifecycle           │
 └──────────────┬──────────────────────┘
-               │ loads
+               │ renders & communicates
                ↓
-┌──────────────────────────────────────┐
-│  React Frontend (chess-ui)           │
-│  ├── Next.js + TypeScript            │
-│  ├── Chess Logic (chess.js)          │
-│  └── AI Integration (OpenAI)         │
-└──────────────────────────────────────┘
-```
+┌─────────────────────────────────────┐
+│ Embedded Web UI (React / Next.js)   │
+│ ├── Game Logic                      │
+│ ├── UI Rendering                    │
+│ └── AI API Integration              │
+└─────────────────────────────────────┘
 
-## 🚀 Getting Started
+Technology Stack
+Native Application
 
-### Prerequisites
-- Visual Studio 2022/2026
-- CMake 3.19+
-- Node.js 18+
-- OpenAI API key
+C++17
 
-### Build Instructions
+Chromium Embedded Framework (CEF)
 
-**1. Clone the repositories:**
-```bash
-git clone https://github.com/yourusername/chess-game-cef.git
-git clone https://github.com/yourusername/chess-game-ui.git
-```
+DirectX 11
 
-**2. Download CEF:**
-- Download from [CEF Builds](https://cef-builds.spotifycdn.com/index.html)
-- Extract to `chess-game-cef/cef/`
+Windows API
 
-**3. Build C++ Application:**
-```bash
+CMake
+
+Frontend
+
+React
+
+Next.js
+
+TypeScript
+
+Chess.js
+
+OpenAI API
+
+Tooling
+
+Visual Studio 2026
+
+Git
+
+npm
+
+Build & Run
+Prerequisites
+
+Visual Studio 2022 or later
+
+CMake 3.19+
+
+Node.js 18+
+
+OpenAI API key
+
+Build Steps
+
+Native application
+
 cd chess-game-cef
 mkdir build && cd build
 cmake .. -G "Visual Studio 18 2026" -A x64
 cmake --build . --config Release
-```
 
-**4. Run Frontend:**
-```bash
+
+Frontend
+
 cd chess-game-ui
 npm install
 npm run dev
-```
 
-**5. Launch Application:**
-```bash
-cd chess-game-cef/build/Release
+
+Run
+
 ./ChessGameCEF.exe
-```
 
-## 🤖 AI Opponents
+Design Considerations
 
-Choose from 8 unique personalities:
-- **Friendly Fred** - Supportive and encouraging
-- **Cocky Carl** - Overconfident trash-talker
-- **Professor Pat** - Educational and analytical
-- **Zen Master Zara** - Philosophical and calm
-- **Mysterious Magnus** - Silent and calculating
-- **Chatty Charlie** - Can't stop talking
-- **Dramatic Diana** - Theatrical performances
-- **Newbie Nina** - Learning and making mistakes
+Separation of concerns between native rendering and UI logic
 
-## 🛠️ Tech Stack
+Off-screen rendering to allow full control over the graphics pipeline
 
-**Native Application:**
-- C++17
-- CEF (Chromium Embedded Framework)
-- DirectX 11
-- CMake
+Clear boundary between system-level responsibilities (C++) and application logic (React)
 
-**Frontend:**
-- React + Next.js
-- TypeScript
-- Chess.js
-- OpenAI API
-- Tailwind CSS
+Type-safe frontend with predictable state management
 
-**Tools:**
-- Visual Studio 2026
-- Git
-- npm
+Related Repositories
 
-## 📸 Screenshots
+Frontend UI (React / Next.js):
+https://github.com/yourusername/chess-game-ui
 
-In progress...
-
-## 🎯 Why This Project?
-
-This project demonstrates:
-- **Multi-language proficiency** - C++, TypeScript, JavaScript
-- **Native development** - DirectX, CEF, Windows API
-- **Modern web tech** - React, Next.js, REST APIs
-- **AI integration** - OpenAI API with creative implementations
-- **Graphics programming** - Off-screen rendering, hardware acceleration
-- **System architecture** - Complex integration between different technologies
-
-## 🔗 Related Repositories
-
-- [Frontend (React UI)](https://github.com/yourusername/chess-game-ui)
+Backend (C# / ASP.NET Core Web API):
+https://github.com/Samuel-Loof/ChessBackend
