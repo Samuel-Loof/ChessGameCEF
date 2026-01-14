@@ -118,14 +118,14 @@ private:
     ID3D11PixelShader* pixel_shader_;              // Pixel shader
     ID3D11InputLayout* input_layout_;              // Vertex format description
     
-    int width_;   // Window width
-    int height_;  // Window height
+    int width_;   
+    int height_;  
     
     // Track mouse state
-    int mouse_x_;              // Current mouse X position
-    int mouse_y_;              // Current mouse Y position
+    int mouse_x_;              
+    int mouse_y_;              
     bool mouse_buttons_[3];    // Left, Right, Middle
-	int mouse_wheel_delta_; // Scroll wheel delta
+	int mouse_wheel_delta_; 
 	std::queue<KeyboardEvent> key_queue_;  // Queue of keyboard events
 	
 	int texture_width_ = 0;   // Track current texture size

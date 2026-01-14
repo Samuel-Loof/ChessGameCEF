@@ -67,7 +67,6 @@ bool DX11Renderer::Initialize(const std::string& title, int width, int height) {
     if (!CreateAppWindow(title, width, height)) return false;
     if (!InitializeDirectX()) return false;
     if (!CreateVertexBuffer()) return false;
-    // if (!CreateTexture(width, height)) return false;  // COMMENT THIS OUT - we create texture dynamically now
     if (!CreateShaders()) return false;
     
     return true;
@@ -412,8 +411,6 @@ void DX11Renderer::Render() {
     float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context_->ClearRenderTargetView(render_target_view_, clear_color);
     
-    // Optional: Draw DirectX background content here if needed
-    
     swap_chain_->Present(1, 0);
 }
 
@@ -566,9 +563,8 @@ bool DX11Renderer::IsKeyDown(int vk_code) const {
     return (GetAsyncKeyState(vk_code) & 0x8000) != 0;
 }
 
-// Cleanup
 void DX11Renderer::Cleanup() {
-    // NEW: Clean up CEF textures
+    // Clean up CEF textures
     if (cef_srv_) cef_srv_->Release();
     if (cef_texture_) cef_texture_->Release();
     
